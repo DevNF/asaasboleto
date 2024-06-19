@@ -1,0 +1,21 @@
+{
+    "name": "nfhub/asaasboleto",
+    "description": "Biblioteca para comunicaçao com a API de boletos do NFHub/Banco Asaas",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Call Seven",
+            "email": "callseven7@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "NFHub\\AsaasBoleto\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "require": {
+    	"nfhub/common": "dev-stable"
+    }
+}
