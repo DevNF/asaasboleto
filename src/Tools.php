@@ -19,58 +19,7 @@ use CURLFile;
 class Tools extends ToolsBase
 {
     /**
-     * Busca os tokens da conta que foi dada a autorização através da API Asaas de uma empresa no NFHub
-     * @param int $account_id ID da conta
-     * @param string $code Código de autorização
-     * @param int $company_id ID da empresa no nfhub
-     * @param array $params Parametros da requisição
-     */
-    public function getTokens(int $account_id, int $nfhub_account_id,string $code, int $company_id, array $params = []): array
-    {
-        try {
-            $params = array_filter($params, function($item) {
-                return $item['name'] !== 'code';
-            }, ARRAY_FILTER_USE_BOTH);
-
-            if (!empty($account_id)) {
-                $params[] = [
-                    'name' => 'account_id',
-                    'value' => $account_id
-                ];
-            }
-            if (!empty($nfhub_account_id)) {
-                $params[] = [
-                    'name' => 'nfhub_account_id',
-                    'value' => $nfhub_account_id
-                ];
-            }
-            if (!empty($code)) {
-                $params[] = [
-                    'name' => 'code',
-                    'value' => $code
-                ];
-            }
-            if (!empty($company_id)) {
-                $params[] = [
-                    'name' => 'company_id',
-                    'value' => $company_id
-                ];
-            }
-
-            $dados = $this->get('asaasboleto/tokens', $params);
-
-            if (!isset($dados['body']->message)) {
-                return $dados;
-            }
-
-            throw new Exception($dados['body']->message, 1);
-        } catch (Exception $error) {
-            throw new Exception($error, 1);
-        }
-    }
-
-    /**
-     * Visualize os dados da conta que foi dada a autorização através da API Asaas de uma empresa no NFHub
+     * Visualize os dados da conta através da API Asaas de uma empresa no NFHub
      * @param string $company_id ID da empresa no nfhub
      * @param array $params Parametros da requisição
      */
@@ -89,6 +38,38 @@ class Tools extends ToolsBase
             }
 
             $dados = $this->get('asaasboleto/accounts', $params);
+
+            if (!isset($dados['body']->message)) {
+                return $dados;
+            }
+
+            throw new Exception($dados['body']->message, 1);
+        } catch (Exception $error) {
+            throw new Exception($error, 1);
+        }
+    }
+
+    /**
+     * Lista os clientes cadastrados na API Asaas de uma empresa no NFHub
+     *
+     * @param array $params Parametros adicionais para a requisição
+     * Filtros possíveis:
+     *     name, email, cpfCnpj, groupName, externalReference, offset e limit
+     * Passando um filtro:
+     *     [
+     *         [
+     *             'name' => 'cpfCnpj,
+     *             'value' => '12345678996'
+     *         ]
+     *     ]
+     *
+     * @access public
+     * @return array
+     */
+    function listaCliente(array $params = []) :array
+    {
+        try {
+            $dados = $this->get('asaasboleto/customers', $params);
 
             if (!isset($dados['body']->message)) {
                 return $dados;
@@ -194,25 +175,10 @@ class Tools extends ToolsBase
     /**
      * Consulta boletos de um período específico do banco Asaas
      */
-    public function consultaBoletosAsaas(int $company_id, array $dados, array $params = []): array
+    public function consultaBoletosAsaas(array $dados, array $params = []): array
     {
-        if (empty($company_id)) {
-            throw new Exception("Não é possível consultar os boletos sem o ID da empresa", 1);
-        }
-
         if (empty($dados)) {
             throw new Exception("Não é possível consultar um boleto sem nenhuma informação", 1);
-        }
-
-        $params = array_filter($params, function($item) {
-            return $item['name'] !== 'company_id';
-        }, ARRAY_FILTER_USE_BOTH);
-
-        if (!empty($company_id)) {
-            $params[] = [
-                'name' => 'company_id',
-                'value' => $company_id
-            ];
         }
 
         $params = array_merge($params, $dados);
@@ -244,6 +210,7 @@ class Tools extends ToolsBase
 
      /**
      * Consulta as informações de um boleto específico no NFHub para o banco Asaas
+     *
      * @param int $id ID do boleto no nfhub
      * @param int $company_id ID da empresa no nfhub
      */
@@ -339,9 +306,10 @@ class Tools extends ToolsBase
             throw new Exception($error, 1);
         }
     }
+
      /**
      * Atualiza um boleto específico no NFHub para o banco Asaas
-     * Se houver boleto será deletado e criado um novo (não exite atualização)
+     *
      * @param int $id ID do boleto no nfhub
      * @param int $company_id ID da empresa no nfhub
      */
@@ -494,33 +462,28 @@ class Tools extends ToolsBase
 
 
     /**
-     * Paga um boleto específico em stage (somente para testes) no NFHub para o banco Asaas
+     * Paga um boleto específico em sandbox (somente para testes) no NFHub para o banco Asaas
      * @param int $id ID do boleto no nfhub
      * @param int $company_id ID da empresa no nfhub
-     * @param string $idempotencyKey Chave de identificação
      *
      */
-    public function pagarBoletoStage(int $id, int $company_id, int $nfhub_account_id, string $idempotencyKey, array $params = []): array
+    public function pagarBoleto(int $id, int $company_id, array $params = []): array
     {
-        if (empty($company_id)) {
-            throw new Exception("Não é possível pagar um boleto sem o ID da empresa", 1);
-        }
-
         if (empty($id)) {
             throw new Exception("Não é possível pagar um boleto sem o id de pelo menos um boleto", 1);
         }
 
+        if (empty($company_id)) {
+            throw new Exception("Não é possível pagar um boleto sem o ID da empresa", 1);
+        }
+
         try {
-            $params = array_filter($params, function($item) {
-                return !in_array($item['name'], ['company_id']);
-            }, ARRAY_FILTER_USE_BOTH);
-
-            $dados['company_id'] = $company_id;
             $dados['installment_hub_id'] = $id;
-            $dados['nfhub_account_id'] = $nfhub_account_id;
-            $dados['idempotencyKey'] = $idempotencyKey;
+            $dados['company_id'] = $company_id;
+            $dados['paymentDate'] = $params['paymentDate'];
+            $dados['value'] = $params['value'];
 
-            $dados = $this->post('asaasboleto/pay', $dados, $params);
+            $dados = $this->post('asaasboleto/payincash', $dados, $params);
 
             if ($dados['httpCode'] == 200) {
                 return $dados;
@@ -530,13 +493,16 @@ class Tools extends ToolsBase
                 throw new Exception($dados['body']->message, 1);
             }
 
-            foreach ($dados['body']->errors as $key => $error) {
-                if (strpos($key, 'position') !== false) {
-                    $errors[] = implode('; ', $error);
-                } else {
-                    $errors[] = $error;
-                }
+            $errors = [];
+
+            foreach ($dados['body']->errors as $error) {
+                $errors[] = [
+                    'code' => $error->code,
+                    'description' => $error->description
+                ];
             }
+
+            return $errors;
 
             throw new Exception("\r\n".implode("\r\n", $errors), 1);
         } catch (Exception $error) {
